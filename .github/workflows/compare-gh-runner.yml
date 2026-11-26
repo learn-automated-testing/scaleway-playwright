@@ -1,0 +1,68 @@
+name: Compare - same tests on a GitHub runner
+
+# Manual only: used to compare speed/cost with the Scaleway Serverless Job.
+# Free on public repos; on private repos every minute below is billed.
+on:
+  workflow_dispatch:
+    inputs:
+      workers:
+        description: Playwright workers
+        default: '4'
+
+permissions:
+  contents: read
+
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Runner hardware
+        run: |
+          echo "vCPU: $(nproc)  RAM: $(free -g | awk '/Mem:/{print $2}') GB"
+          echo "### Runner: $(nproc) vCPU, $(free -g | awk '/Mem:/{print $2}') GB RAM" >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Run Playwright
+        env:
+          PW_WORKERS: ${{ inputs.workers }}
+        run: npx playwright test
+
+      - name: Summary
+        if: always()
+        run: |
+          python3 - <<'PY' >> "$GITHUB_STEP_SUMMARY"
+          import json
+          r = json.load(open('playwright-report/results.json'))
+          s = r['stats']
+          tests = []
+          def walk(suite):
+              for c in suite.get('suites', []): walk(c)
+              for sp in suite.get('specs', []):
+                  for t in sp['tests']:
+                      tests.append((sp['title'], t['results'][-1]['duration'] / 1000))
+          for su in r['suites']: walk(su)
+          print(f"| passed | failed | tests total | avg per test |\n|---|---|---|---|")
+          print(f"| {s['expected']} | {s['unexpected']} | {s['duration']/1000:.1f}s | {sum(d for _, d in tests)/len(tests):.1f}s |")
+          print("\n| test | seconds |\n|---|---|")
+          for t, d in tests: print(f"| {t} | {d:.1f} |")
+          PY
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 7

@@ -12,8 +12,7 @@
 //   ALLOWED_REPOS (comma-separated owner/repo; only these can start runs)
 //   BASE_URL, BRANCHES (optional, comma-separated; empty = all branches)
 //   REPORT_BUCKET, REPORT_ACCESS_KEY*, REPORT_SECRET_KEY* (optional report upload)
-'use strict';
-const crypto = require('node:crypto');
+import crypto from 'node:crypto';
 
 const CHECK_NAME = 'Playwright E2E (Scaleway)';
 const env = process.env;
@@ -225,7 +224,7 @@ function reply(statusCode, body) {
   return { statusCode, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) };
 }
 
-module.exports.handle = async (event) => {
+export async function handle(event) {
   try {
     const headers = Object.fromEntries(Object.entries(event.headers || {}).map(([k, v]) => [k.toLowerCase(), v]));
     const raw = event.isBase64Encoded ? Buffer.from(event.body || '', 'base64').toString('utf8') : event.body || '';
@@ -244,4 +243,4 @@ module.exports.handle = async (event) => {
     console.error(err);
     return reply(500, { error: err.message });
   }
-};
+}

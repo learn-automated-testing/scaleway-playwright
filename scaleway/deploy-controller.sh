@@ -47,7 +47,7 @@ fi
 
 echo "==> Uploading code"
 ZIP="$(mktemp -d)/controller.zip"
-(cd controller && zip -q "$ZIP" handler.js)
+(cd controller && zip -q "$ZIP" handler.js package.json)
 scw function deploy region="$REGION" namespace-id="$NS_ID" name="$FN_NAME" runtime=node22 zip-file="$ZIP" >/dev/null
 FN_ID="$(scw function function list region="$REGION" namespace-id="$NS_ID" name="$FN_NAME" -o json | json 'print(d[0]["id"])')"
 

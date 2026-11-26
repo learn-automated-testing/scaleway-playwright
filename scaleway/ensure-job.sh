@@ -12,8 +12,8 @@ cd "$(dirname "$0")/.."
 REGION="${SCW_DEFAULT_REGION:-fr-par}"
 NAMESPACE="${SCW_REGISTRY_NAMESPACE:-playwright-tests}"
 JOB_NAME="${SCW_JOB_NAME:-practiceautomatedtesting-e2e}"
-CPU="${SCW_JOB_CPU:-2000}"        # 2 vCPU: Chromium renders without GPU, 1 vCPU was ~12x slower
-MEMORY="${SCW_JOB_MEMORY:-4096}"  # 4 GiB for 2 browser workers
+CPU="${SCW_JOB_CPU:-4000}"        # 4 vCPU: one Playwright worker per vCPU (no GPU, Chromium renders on CPU)
+MEMORY="${SCW_JOB_MEMORY:-8192}"  # 8 GiB: 2 GiB per browser worker
 STORAGE="${SCW_JOB_STORAGE:-5000}" # MiB local disk: Playwright image + report
 
 hash_cmd() { command -v sha256sum >/dev/null && sha256sum || shasum -a 256; }

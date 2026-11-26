@@ -12,7 +12,7 @@ Controller: Scaleway Serverless Function (controller/handler.js)
    │  2. create check run "Playwright E2E (Scaleway)" → queued
    │  3. start Serverless Job with commit SHA + 1-hour installation token
    ▼
-Serverless Job (2 vCPU / 4 GiB, billed per second)
+Serverless Job (4 vCPU / 8 GiB, billed per second)
    │  check → in progress
    │  download tests for that commit → npx playwright test
    │  upload HTML report → Object Storage (public link, unguessable path, 14 days)

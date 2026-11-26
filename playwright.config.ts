@@ -7,7 +7,8 @@ export default defineConfig({
   fullyParallel: true,
   forbidOnly: isCI,
   retries: isCI ? 1 : 0,
-  workers: isCI ? 2 : undefined,
+  // CI = the Scaleway job (4 vCPU): one worker per vCPU. Override with PW_WORKERS.
+  workers: process.env.PW_WORKERS ? Number(process.env.PW_WORKERS) : isCI ? 4 : undefined,
   timeout: 30_000,
   reporter: [
     ['list'],

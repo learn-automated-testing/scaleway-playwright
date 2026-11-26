@@ -1,0 +1,26 @@
+{
+  "name": "scaleway-playwright",
+  "version": "1.0.0",
+  "description": "Playwright tests for practiceautomatedtesting.com, run on Scaleway Serverless Jobs from GitHub Actions",
+  "scripts": {
+    "test": "playwright test",
+    "test:headed": "playwright test --headed",
+    "report": "playwright show-report"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/learn-automated-testing/scaleway-playwright.git"
+  },
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/learn-automated-testing/scaleway-playwright/issues"
+  },
+  "homepage": "https://github.com/learn-automated-testing/scaleway-playwright#readme",
+  "devDependencies": {
+    "@playwright/test": "1.65.1"
+  },
+  "dependencies": {
+    "@aws-sdk/client-s3": "^3.1178.0"
+  },
+  "private": true
+}

@@ -47,7 +47,7 @@ fi
 
 echo "==> Uploading code"
 ZIP="$(mktemp -d)/controller.zip"
-(cd controller && zip -q "$ZIP" handler.js package.json)
+(cd controller && zip -q "$ZIP" handler.js sqs.js package.json)
 scw function deploy region="$REGION" namespace-id="$NS_ID" name="$FN_NAME" runtime=node22 zip-file="$ZIP" >/dev/null
 FN_ID="$(scw function function list region="$REGION" namespace-id="$NS_ID" name="$FN_NAME" -o json | json 'print(d[0]["id"])')"
 
@@ -57,6 +57,13 @@ SECRETS=(
   GITHUB_WEBHOOK_SECRET "$GITHUB_WEBHOOK_SECRET"
   JOBS_SECRET_KEY "$CONTROLLER_SCW_SECRET_KEY"
 )
+if [ "${RUNNER:-job}" = container ]; then
+  SECRETS+=(
+    SQS_ACCESS_KEY "${SQS_SEND_ACCESS_KEY:?run ./scaleway/deploy-container.sh first}"
+    SQS_SECRET_KEY "${SQS_SEND_SECRET_KEY:?}"
+    RUN_SECRET "${RUN_SECRET:?}"
+  )
+fi
 [ -n "${REPORT_BUCKET:-}" ] && SECRETS+=(
   REPORT_ACCESS_KEY "${REPORT_ACCESS_KEY:?REPORT_ACCESS_KEY required with REPORT_BUCKET}"
   REPORT_SECRET_KEY "${REPORT_SECRET_KEY:?REPORT_SECRET_KEY required with REPORT_BUCKET}"
@@ -76,6 +83,8 @@ scw function function update "$FN_ID" region="$REGION" \
   "environment-variables.BRANCHES=${BRANCHES:-}" \
   "environment-variables.ALLOWED_REPOS=${ALLOWED_REPOS:?set ALLOWED_REPOS, e.g. learn-automated-testing/scaleway-playwright}" \
   "environment-variables.REPORT_BUCKET=${REPORT_BUCKET:-}" \
+  "environment-variables.RUNNER=${RUNNER:-job}" \
+  "environment-variables.SQS_QUEUE_URL=${SQS_QUEUE_URL:-}" \
   "${SECRET_ARGS[@]}" >/dev/null
 
 echo "==> Deploying (1-2 min)"

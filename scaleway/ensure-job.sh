@@ -16,9 +16,7 @@ CPU="${SCW_JOB_CPU:-4000}"        # 4 vCPU: one Playwright worker per vCPU (no G
 MEMORY="${SCW_JOB_MEMORY:-8192}"  # 8 GiB: 2 GiB per browser worker
 STORAGE="${SCW_JOB_STORAGE:-5000}" # MiB local disk: Playwright image + report
 
-hash_cmd() { command -v sha256sum >/dev/null && sha256sum || shasum -a 256; }
-TAG="deps-$(cat Dockerfile package.json package-lock.json scripts/* | hash_cmd | cut -c1-12)"
-IMAGE="rg.${REGION}.scw.cloud/${NAMESPACE}/playwright-e2e:${TAG}"
+. scaleway/image-tag.sh   # sets IMAGE (tag = hash of Dockerfile, package*.json, scripts/)
 log() { echo "$@" >&2; }
 
 if ! scw registry namespace list region="$REGION" name="$NAMESPACE" -o json | grep -q "\"name\":\"${NAMESPACE}\""; then

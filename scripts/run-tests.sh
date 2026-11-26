@@ -10,6 +10,9 @@
 set -uo pipefail
 cd /app
 
+# A container instance can handle several runs in a row: start from a clean slate.
+rm -rf /tmp/src /tmp/report-url playwright-report test-results
+
 REPORTED=0
 on_exit() {
   if [ "$REPORTED" = 0 ]; then

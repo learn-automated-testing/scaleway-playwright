@@ -27,6 +27,25 @@ Cron every 15 min → controller sweeper: a job that died without reporting
 (timeout, out of memory) gets its check run marked as failed.
 ```
 
+## Two runners: Serverless Jobs or Serverless Containers
+
+The same image and the same webhook work with both. `RUNNER` in `.env` picks one.
+
+| | `RUNNER=job` (default) | `RUNNER=container` |
+|---|---|---|
+| Path | controller → Serverless Job | controller → Scaleway Queue → trigger → Serverless Container |
+| Start-up | job scheduler: 0 s warm, up to ~3 min cold | no scheduler queue, only a container cold start |
+| Price | €0.00001/vCPU-s + €0.000002/GB-s | same rates, plus a few queue messages |
+| Crashed runs | sweeper marks the check failed | queue trigger retries (max 3), check may stay "in progress" |
+
+Switch to containers (one-time setup, then it redeploys the controller):
+
+```bash
+./scaleway/deploy-container.sh
+```
+
+Switch back: set `RUNNER=job` in `.env` and run `./scaleway/deploy-controller.sh`.
+
 ## Cost
 
 | Part | Cost |
@@ -122,7 +141,7 @@ Repo → Settings → Branches → branch protection for `main` → **Require st
 | `tests/*.spec.ts` | Home, Web Elements and Shopping tests |
 | `playwright.config.ts` | `BASE_URL`, HTML + JSON reporters, CI retries/workers |
 | `controller/handler.js` | Serverless Function: webhook → check run → start job, plus the sweeper. No dependencies |
-| `Dockerfile` | `mcr.microsoft.com/playwright` + `npm ci`. Keep its tag equal to `@playwright/test` |
+| `Dockerfile` | Node 22 slim + Chromium headless shell + `npm ci` (~1 GB) |
 | `scripts/run-tests.sh` | Job entrypoint: check in progress → fetch tests → run → upload → complete check |
 | `scripts/github-check.mjs` | Turns `results.json` into the check run summary and annotations |
 | `scripts/upload-report.mjs` | Uploads the HTML report to Object Storage and returns its link |

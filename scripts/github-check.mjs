@@ -62,7 +62,7 @@ if (mode === 'start') {
   await patch({
     status: 'in_progress',
     started_at: new Date().toISOString(),
-    output: { title: 'Running on Scaleway Serverless Jobs', summary: `Testing \`${process.env.BASE_URL ?? ''}\`` },
+    output: { title: process.env.RUNNER_MODE === 'server' ? 'Running on Scaleway Serverless Containers' : 'Running on Scaleway Serverless Jobs', summary: `Testing \`${process.env.BASE_URL ?? ''}\`` },
   });
 } else if (mode === 'crash') {
   await patch({

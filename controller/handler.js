@@ -10,9 +10,12 @@
 //   JOBS_SECRET_KEY* (Scaleway API key allowed to start jobs), JOBS_REGION, JOB_DEFINITION_ID
 //   (Scaleway reserves SCW_* names, so none are used here)
 //   ALLOWED_REPOS (comma-separated owner/repo; only these can start runs)
+//   RUNNER = job (Serverless Job, default) | container (Serverless Container via Scaleway Queues)
+//   for RUNNER=container: SQS_QUEUE_URL, SQS_ACCESS_KEY*, SQS_SECRET_KEY*, RUN_SECRET*
 //   BASE_URL, BRANCHES (optional, comma-separated; empty = all branches)
 //   REPORT_BUCKET, REPORT_ACCESS_KEY*, REPORT_SECRET_KEY* (optional report upload)
 import crypto from 'node:crypto';
+import { sqsClient } from './sqs.js';
 
 const CHECK_NAME = 'Playwright E2E (Scaleway)';
 const env = process.env;
@@ -66,6 +69,25 @@ async function scw(path, { method = 'GET', body } = {}) {
   });
   if (!res.ok) throw new Error(`Scaleway ${method} ${path} -> ${res.status} ${await res.text()}`);
   return res.json();
+}
+
+// Serverless Container runner: queue a message; the queue trigger delivers it to the container,
+// which runs the tests while the trigger waits. The controller can answer GitHub immediately.
+async function queueContainerRun(vars) {
+  const sqs = sqsClient({
+    endpoint: new URL(env.SQS_QUEUE_URL).origin,
+    region: REGION,
+    accessKeyId: env.SQS_ACCESS_KEY,
+    secretAccessKey: env.SQS_SECRET_KEY,
+  });
+  // Report credentials live in the container's own config, not in the message.
+  const { REPORT_BUCKET, REPORT_ACCESS_KEY, REPORT_SECRET_KEY, REPORT_REGION, ...runEnv } = vars;
+  const id = await sqs.sendMessage(env.SQS_QUEUE_URL, JSON.stringify({ secret: env.RUN_SECRET, env: runEnv }));
+  return `container:${id}`;
+}
+
+async function startRun(vars) {
+  return (env.RUNNER || 'job') === 'container' ? queueContainerRun(vars) : startJob(vars);
 }
 
 async function startJob(vars) {
@@ -139,12 +161,15 @@ async function onWebhook(event, payload) {
       name: CHECK_NAME,
       head_sha: trigger.sha,
       status: 'queued',
-      output: { title: 'Queued on Scaleway Serverless Jobs', summary: 'Waiting for the job to start…' },
+      output: {
+        title: (env.RUNNER || 'job') === 'container' ? 'Queued for Scaleway Serverless Containers' : 'Queued on Scaleway Serverless Jobs',
+        summary: 'Waiting for the run to start…',
+      },
     },
   });
 
   try {
-    const runId = await startJob({
+    const runId = await startRun({
       GITHUB_REPOSITORY: repo,
       GIT_SHA: trigger.sha,
       GITHUB_TOKEN: token,
@@ -174,6 +199,7 @@ async function onWebhook(event, payload) {
 
 // ---------- Sweeper: job runs that died without reporting ----------
 async function sweep() {
+  if ((env.RUNNER || 'job') !== 'job') return reply(200, { skipped: 'sweeper only applies to RUNNER=job' });
   const { job_runs: runs = [] } = await scw(
     `/job-runs?job_definition_id=${env.JOB_DEFINITION_ID}&order_by=created_at_desc&page_size=50`,
   );

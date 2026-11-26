@@ -4,3 +4,9 @@ playwright-report/
 blob-report/
 .env
 *.pem
+# OpenTofu
+infra/.terraform/
+infra/.build/
+infra/*.tfstate
+infra/*.tfstate.*
+infra/terraform.tfvars

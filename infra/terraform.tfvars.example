@@ -1,0 +1,13 @@
+# Copy to terraform.tfvars (git-ignored) and fill in.
+
+github_app_id               = "1234567"
+github_app_private_key_path = "../your-app.private-key.pem"
+allowed_repos               = ["your-org/your-repo"]
+
+# Optional
+# branches              = ["main"]
+# base_url              = "https://www.practiceautomatedtesting.com"
+# runner                = "container"   # or "job"
+# cpu                   = 4000
+# memory_mb             = 8192
+# report_retention_days = 14

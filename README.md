@@ -27,6 +27,38 @@ Cron every 15 min → controller sweeper: a job that died without reporting
 (timeout, out of memory) gets its check run marked as failed.
 ```
 
+## Infrastructure as code (OpenTofu): recommended
+
+Everything lives in **one dedicated Scaleway project** (`playwright-e2e`), so it never mixes with your other projects.
+
+```bash
+cd infra
+cp terraform.tfvars.example terraform.tfvars   # GitHub App ID, .pem path, allowed repos
+tofu init
+tofu apply      # creates everything, builds + pushes the image, points the GitHub App webhook here
+tofu destroy    # removes everything: the project and all resources and secrets inside
+```
+
+What `tofu apply` creates (25 resources):
+
+| Area | Resources |
+|---|---|
+| Project | `playwright-e2e` (`delete_with_resources = true`) |
+| IAM | 2 applications + policies + API keys (Object Storage for reports, Serverless Jobs for the controller), scoped to the project |
+| Secrets | webhook secret + run secret (generated), GitHub App key, all keys as secret env vars |
+| Storage | report bucket with a 14-day lifecycle rule, container registry |
+| Image | built and pushed with docker, only rebuilt when `Dockerfile`, `package*.json` or `scripts/` change |
+| Runners | Serverless Job, plus Queues + queue + credentials + Serverless Container + trigger |
+| Controller | Serverless Function + 15-minute sweeper cron |
+| GitHub | the App's webhook **URL and secret** are updated through the GitHub API (`PATCH /app/hook/config`) |
+
+Switch runner: set `runner = "job"` or `"container"` in `terraform.tfvars`, then `tofu apply`.
+
+> Demo setup: the state file `infra/terraform.tfstate` contains secrets and is git-ignored. For a team, use a remote backend.
+> The GitHub App itself is created once by hand (see below). After `tofu destroy` its webhook points at a deleted URL, which is harmless.
+
+The shell scripts in `scaleway/` are the manual alternative. They deploy into your CLI's **default** project.
+
 ## Two runners: Serverless Jobs or Serverless Containers
 
 The same image and the same webhook work with both. `RUNNER` in `.env` picks one.

@@ -97,7 +97,11 @@ if (mode === 'start') {
     '|---|---|---|---|---|',
     `| ${s.expected} | ${s.unexpected} | ${s.flaky} | ${s.skipped} | ${secs}s |`,
     '',
-    reportUrl ? `📊 **[Open the full HTML report](${reportUrl})** (screenshots, videos, traces; kept 14 days)` : '_No report uploaded (REPORT_BUCKET not set)._',
+    reportUrl
+      ? `📊 **[Open the full HTML report](${reportUrl})** (screenshots, videos, traces; kept 14 days)`
+      : process.env.REPORT_BUCKET
+        ? '⚠️ _Report upload to Object Storage failed: check the job logs (often: API key lacks `ObjectStorageFullAccess`)._'
+        : '_No report uploaded (REPORT_BUCKET not set)._',
   ];
   const fmt = (list, heading) => list.length && lines.push('', `### ${heading}`, ...list.slice(0, 20).map(
     (f) => `<details><summary><code>${f.path}:${f.line}</code> — ${f.title}</summary>\n\n\`\`\`\n${f.message.slice(0, 1500)}\n\`\`\`\n</details>`,

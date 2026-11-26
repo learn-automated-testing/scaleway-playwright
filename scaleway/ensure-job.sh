@@ -12,8 +12,8 @@ cd "$(dirname "$0")/.."
 REGION="${SCW_DEFAULT_REGION:-fr-par}"
 NAMESPACE="${SCW_REGISTRY_NAMESPACE:-playwright-tests}"
 JOB_NAME="${SCW_JOB_NAME:-practiceautomatedtesting-e2e}"
-CPU="${SCW_JOB_CPU:-1000}"        # 1 vCPU is plenty for 2 workers against a remote site
-MEMORY="${SCW_JOB_MEMORY:-2048}"  # 2 GiB
+CPU="${SCW_JOB_CPU:-2000}"        # 2 vCPU: Chromium renders without GPU, 1 vCPU was ~12x slower
+MEMORY="${SCW_JOB_MEMORY:-4096}"  # 4 GiB for 2 browser workers
 STORAGE="${SCW_JOB_STORAGE:-5000}" # MiB local disk: Playwright image + report
 
 hash_cmd() { command -v sha256sum >/dev/null && sha256sum || shasum -a 256; }
@@ -47,10 +47,12 @@ if [ -z "$JOB_ID" ]; then
     | python3 -c 'import json,sys; print(json.load(sys.stdin)["id"])')"
 else
   CURRENT="$(scw jobs definition get "$JOB_ID" region="$REGION" -o json \
-    | python3 -c 'import json,sys; print(json.load(sys.stdin)["image_uri"])')"
-  if [ "$CURRENT" != "$IMAGE" ]; then
-    log "==> Pointing job definition at ${IMAGE}"
-    scw jobs definition update "$JOB_ID" region="$REGION" image-uri="$IMAGE" >/dev/null
+    | python3 -c 'import json,sys; d=json.load(sys.stdin); print(d["image_uri"], d["cpu_limit"], d["memory_limit"])')"
+  WANTED="${IMAGE} ${CPU} ${MEMORY}"
+  if [ "$CURRENT" != "$WANTED" ]; then
+    log "==> Updating job definition: image ${IMAGE}, ${CPU} mvCPU, ${MEMORY} MiB"
+    scw jobs definition update "$JOB_ID" region="$REGION" \
+      image-uri="$IMAGE" cpu-limit="$CPU" memory-limit="$MEMORY" >/dev/null
   fi
 fi
 

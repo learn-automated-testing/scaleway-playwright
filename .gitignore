@@ -10,3 +10,6 @@ infra/.build/
 infra/*.tfstate
 infra/*.tfstate.*
 infra/terraform.tfvars
+# Kubernetes credentials
+*.kubeconfig
+kubeconfig*

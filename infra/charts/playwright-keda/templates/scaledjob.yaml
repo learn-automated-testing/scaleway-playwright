@@ -1,0 +1,70 @@
+apiVersion: keda.sh/v1alpha1
+kind: TriggerAuthentication
+metadata:
+  name: scaleway-queue
+spec:
+  secretTargetRef:
+    - parameter: awsAccessKeyID
+      name: playwright-runner
+      key: SQS_ACCESS_KEY
+    - parameter: awsSecretAccessKey
+      name: playwright-runner
+      key: SQS_SECRET_KEY
+---
+# One Kubernetes Job per waiting queue message. The worker deletes its message right away,
+# so in-flight messages are not counted (scaleOnInFlight: false).
+apiVersion: keda.sh/v1alpha1
+kind: ScaledJob
+metadata:
+  name: playwright-runner
+spec:
+  pollingInterval: 5
+  maxReplicaCount: {{ .Values.maxReplicas }}
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTargetRef:
+    backoffLimit: 0
+    activeDeadlineSeconds: 1200
+    ttlSecondsAfterFinished: 3600
+    template:
+      spec:
+        restartPolicy: Never
+        imagePullSecrets:
+          - name: registry
+        nodeSelector:
+          k8s.scaleway.com/pool-name: {{ .Values.pool }}
+        tolerations:
+          - key: dedicated
+            value: playwright
+            effect: NoSchedule
+        containers:
+          - name: runner
+            image: {{ .Values.image }}
+            env:
+              - name: RUNNER_MODE
+                value: worker
+              - name: PW_WORKERS
+                value: "4"
+              - name: SQS_QUEUE_URL
+                value: {{ .Values.sqs.queueUrl | quote }}
+              - name: SQS_REGION
+                value: {{ .Values.sqs.region | quote }}
+              - name: REPORT_BUCKET
+                value: {{ .Values.report.bucket | quote }}
+              - name: REPORT_REGION
+                value: {{ .Values.report.region | quote }}
+            envFrom:
+              - secretRef:
+                  name: playwright-runner
+            resources:
+              {{- toYaml .Values.resources | nindent 14 }}
+  triggers:
+    - type: aws-sqs-queue
+      authenticationRef:
+        name: scaleway-queue
+      metadata:
+        queueURL: {{ .Values.sqs.queueUrl | quote }}
+        queueLength: "1"
+        awsRegion: {{ .Values.sqs.region | quote }}
+        awsEndpoint: {{ .Values.sqs.endpoint | quote }}
+        scaleOnInFlight: "false"

@@ -52,7 +52,7 @@ What `tofu apply` creates (25 resources):
 | Controller | Serverless Function + 15-minute sweeper cron |
 | GitHub | the App's webhook **URL and secret** are updated through the GitHub API (`PATCH /app/hook/config`) |
 
-Switch runner: set `runner = "job"` or `"container"` in `terraform.tfvars`, then `tofu apply`.
+Switch runner: set `runner = "job"`, `"container"` or `"keda"` in `terraform.tfvars`, then `tofu apply`.
 
 > Demo setup: the state file `infra/terraform.tfstate` contains secrets and is git-ignored. For a team, use a remote backend.
 > The GitHub App itself is created once by hand (see below). After `tofu destroy` its webhook points at a deleted URL, which is harmless.
@@ -77,6 +77,31 @@ Switch to containers (one-time setup, then it redeploys the controller):
 ```
 
 Switch back: set `RUNNER=job` in `.env` and run `./scaleway/deploy-controller.sh`.
+
+## Third runner (comparison): Kapsule + KEDA
+
+`infra/keda.tf`, only created with `enable_keda = true`. Same image, same webhook, same check run.
+
+```
+controller -> Queue "playwright-runs-keda" -> KEDA (aws-sqs-queue scaler) -> Kubernetes Job (RUNNER_MODE=worker)
+```
+
+| | |
+|---|---|
+| Cluster | Kapsule (free shared control plane), private network, Cilium |
+| `system` pool | 1 × DEV1-M, always on, runs KEDA: **~€15/month while the cluster exists** |
+| `runners` pool | PLAY2-MICRO (4 vCPU / 8 GB, ~€0.055/h), autoscaled **0 → 2**, tainted so only test pods land there |
+| Worker | `scripts/sqs-worker.mjs`: takes one message, deletes it, runs the tests, exits |
+| Secrets | passed by OpenTofu into a Helm release (`infra/charts/playwright-keda`), never in git |
+
+```bash
+# in terraform.tfvars
+enable_keda = true
+runner      = "keda"
+```
+
+Then `tofu apply`. Watch a run with `$(tofu output -raw keda_kubeconfig_command)` and `kubectl get scaledjobs,jobs,pods,nodes -A`.
+Turn it off again with `enable_keda = false` (and `runner = "container"`) and `tofu apply`; `tofu destroy` removes everything.
 
 ## Cost
 

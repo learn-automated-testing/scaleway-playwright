@@ -58,5 +58,20 @@ export function sqsClient({ endpoint, region, accessKeyId, secretAccessKey }) {
     async sendMessage(queueUrl, messageBody) {
       return tag(await call('SendMessage', { QueueUrl: queueUrl, MessageBody: messageBody }, pathOf(queueUrl)), 'MessageId');
     },
+    // Returns { body, receiptHandle } or null when the queue stays empty for waitSeconds.
+    async receiveMessage(queueUrl, { waitSeconds = 20, visibilityTimeout = 900 } = {}) {
+      const xml = await call('ReceiveMessage', {
+        QueueUrl: queueUrl, MaxNumberOfMessages: '1',
+        WaitTimeSeconds: String(waitSeconds), VisibilityTimeout: String(visibilityTimeout),
+      }, pathOf(queueUrl));
+      const receiptHandle = tag(xml, 'ReceiptHandle');
+      if (!receiptHandle) return null;
+      const body = tag(xml, 'Body').replace(/&quot;/g, '"').replace(/&apos;/g, "'")
+        .replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&#xD;/g, '\r').replace(/&amp;/g, '&');
+      return { body, receiptHandle };
+    },
+    async deleteMessage(queueUrl, receiptHandle) {
+      await call('DeleteMessage', { QueueUrl: queueUrl, ReceiptHandle: receiptHandle }, pathOf(queueUrl));
+    },
   };
 }

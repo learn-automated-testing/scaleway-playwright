@@ -40,12 +40,12 @@ variable "base_url" {
 }
 
 variable "runner" {
-  description = "Where tests run: 'job' (Serverless Job) or 'container' (Serverless Container via Queues)"
+  description = "Where tests run: 'job' (Serverless Job), 'container' (Serverless Container via Queues) or 'keda' (Kapsule + KEDA, needs enable_keda)"
   type        = string
   default     = "container"
   validation {
-    condition     = contains(["job", "container"], var.runner)
-    error_message = "runner must be 'job' or 'container'."
+    condition     = contains(["job", "container", "keda"], var.runner)
+    error_message = "runner must be 'job', 'container' or 'keda'."
   }
 }
 
@@ -65,4 +65,31 @@ variable "report_retention_days" {
   description = "HTML reports in Object Storage are deleted after this many days"
   type        = number
   default     = 14
+}
+
+# ---------- Kapsule + KEDA (comparison runner, keda.tf) ----------
+# Costs money while it exists, even idle: the system node runs 24/7 (~EUR 15/month for DEV1-M).
+# Runner nodes scale from 0 and are only billed while tests run.
+variable "enable_keda" {
+  description = "Create a Kapsule cluster with KEDA as a third runner"
+  type        = bool
+  default     = false
+}
+
+variable "keda_system_node_type" {
+  description = "Always-on node for KEDA and system pods"
+  type        = string
+  default     = "DEV1-M" # 3 vCPU / 4 GB, ~EUR 0.020/h
+}
+
+variable "keda_runner_node_type" {
+  description = "Node type for test runs (scaled from 0 by the cluster autoscaler)"
+  type        = string
+  default     = "PLAY2-MICRO" # 4 vCPU / 8 GB, ~EUR 0.055/h - same size as the job/container
+}
+
+variable "keda_runner_max_nodes" {
+  description = "Maximum runner nodes (one test run per node)"
+  type        = number
+  default     = 2
 }

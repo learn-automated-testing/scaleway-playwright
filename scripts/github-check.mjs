@@ -62,7 +62,7 @@ if (mode === 'start') {
   await patch({
     status: 'in_progress',
     started_at: new Date().toISOString(),
-    output: { title: process.env.RUNNER_MODE === 'server' ? 'Running on Scaleway Serverless Containers' : 'Running on Scaleway Serverless Jobs', summary: `Testing \`${process.env.BASE_URL ?? ''}\`` },
+    output: { title: { server: 'Running on Scaleway Serverless Containers', worker: 'Running on Kapsule + KEDA' }[process.env.RUNNER_MODE] || 'Running on Scaleway Serverless Jobs', summary: `Testing \`${process.env.BASE_URL ?? ''}\`` },
   });
 } else if (mode === 'crash') {
   await patch({
@@ -75,6 +75,11 @@ if (mode === 'start') {
     },
   });
 } else if (mode === 'complete') {
+  // https://<bucket>.s3.<region>.scw.cloud/<prefix>/index.html -> console view of that folder
+  const bucketUrl = (url) => {
+    const m = url.match(/^https:\/\/([^.]+)\.s3\.([a-z]+-[a-z]+)\.scw\.cloud\/(.+)\/index\.html$/);
+    return m ? `https://console.scaleway.com/object-storage/buckets/${m[2]}/${m[1]}/files/${m[3]}/` : null;
+  };
   const reportUrl = (await readMaybe(REPORT_URL_FILE))?.trim() || null;
   const json = await readMaybe(path.join(APP_DIR, 'playwright-report/results.json'));
   if (!json) {
@@ -98,7 +103,8 @@ if (mode === 'start') {
     `| ${s.expected} | ${s.unexpected} | ${s.flaky} | ${s.skipped} | ${secs}s |`,
     '',
     reportUrl
-      ? `📊 **[Open the full HTML report](${reportUrl})** (screenshots, videos, traces; kept 14 days)`
+      ? `📊 **[Open the full HTML report](${reportUrl})** (screenshots, videos, traces; kept 14 days)` +
+        (bucketUrl(reportUrl) ? `\n\n🪣 [Browse this run's files in the Scaleway bucket](${bucketUrl(reportUrl)}) (Scaleway console login required)` : '')
       : process.env.REPORT_BUCKET
         ? '⚠️ _Report upload to Object Storage failed: check the job logs (often: API key lacks `ObjectStorageFullAccess`)._'
         : '_No report uploaded (REPORT_BUCKET not set)._',

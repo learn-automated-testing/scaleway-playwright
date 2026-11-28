@@ -19,6 +19,8 @@ RUN npm ci \
  && rm -rf /var/lib/apt/lists/* /root/.npm
 
 COPY scripts ./scripts
+# SQS client shared with the controller (used by the KEDA worker)
+COPY controller/sqs.js controller/package.json ./controller/
 
 # Jobs: run once and exit. Containers: set RUNNER_MODE=server.
 ENTRYPOINT ["./scripts/entrypoint.sh"]

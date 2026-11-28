@@ -1,0 +1,5 @@
+apiVersion: v2
+name: playwright-keda
+description: Playwright test runs as Kubernetes Jobs, started by KEDA from a Scaleway Queue
+type: application
+version: 0.1.0

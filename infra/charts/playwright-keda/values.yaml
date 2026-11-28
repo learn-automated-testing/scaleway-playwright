@@ -1,0 +1,19 @@
+# All values are set by OpenTofu (infra/keda.tf). Secrets are never stored in this file.
+image: ""
+registry: rg.fr-par.scw.cloud
+pullSecret: ""
+pool: runners
+maxReplicas: 2
+sqs:
+  endpoint: ""
+  queueUrl: ""
+  region: fr-par
+  accessKey: ""
+  secretKey: ""
+report:
+  bucket: ""
+  region: fr-par
+  accessKey: ""
+  secretKey: ""
+runSecret: ""
+resources: {}

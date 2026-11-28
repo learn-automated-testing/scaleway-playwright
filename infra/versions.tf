@@ -14,6 +14,10 @@ terraform {
       source  = "hashicorp/random"
       version = "~> 3.7"
     }
+    helm = {
+      source  = "hashicorp/helm"
+      version = "~> 3.1"
+    }
   }
 
   # Demo setup: state is kept locally in infra/terraform.tfstate (git-ignored).
@@ -25,4 +29,14 @@ terraform {
 provider "scaleway" {
   region = var.region
   zone   = "${var.region}-1"
+}
+
+# Only used when enable_keda = true: talks to the Kapsule cluster created in keda.tf.
+# The cluster token stays in memory/state; no kubeconfig file is written.
+provider "helm" {
+  kubernetes = {
+    host                   = try(scaleway_k8s_cluster.keda[0].kubeconfig[0].host, "")
+    token                  = try(scaleway_k8s_cluster.keda[0].kubeconfig[0].token, "")
+    cluster_ca_certificate = try(base64decode(scaleway_k8s_cluster.keda[0].kubeconfig[0].cluster_ca_certificate), "")
+  }
 }

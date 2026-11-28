@@ -7,7 +7,10 @@ allowed_repos               = ["your-org/your-repo"]
 # Optional
 # branches              = ["main"]
 # base_url              = "https://www.practiceautomatedtesting.com"
-# runner                = "container"   # or "job"
+# runner                = "container"   # or "job", or "keda" (with enable_keda = true)
 # cpu                   = 4000
 # memory_mb             = 8192
 # report_retention_days = 14
+
+# Kapsule + KEDA comparison runner (costs ~EUR 15/month while it exists, see variables.tf)
+# enable_keda = true

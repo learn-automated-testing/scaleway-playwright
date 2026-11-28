@@ -30,3 +30,16 @@ output "container_id" {
 output "queue_url" {
   value = scaleway_mnq_sqs_queue.runs.url
 }
+
+output "keda_cluster_id" {
+  value = one(scaleway_k8s_cluster.keda[*].id)
+}
+
+output "keda_queue_url" {
+  value = one(scaleway_mnq_sqs_queue.keda[*].url)
+}
+
+output "keda_kubeconfig_command" {
+  description = "Get a kubeconfig to watch runs (kubectl get scaledjobs,jobs,pods,nodes)"
+  value       = var.enable_keda ? "scw k8s kubeconfig get ${element(split("/", scaleway_k8s_cluster.keda[0].id), 1)} region=${var.region} > ~/.kube/playwright-keda && export KUBECONFIG=~/.kube/playwright-keda" : null
+}

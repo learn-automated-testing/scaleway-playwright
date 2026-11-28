@@ -2,6 +2,7 @@
 #
 #   GitHub App webhook -> controller (Function) -> Serverless Job          (runner = "job")
 #                                               -> Queue -> Container        (runner = "container")
+#                                               -> Queue -> KEDA -> k8s Job  (runner = "keda", keda.tf)
 #   Results -> GitHub check run, HTML report -> Object Storage
 #
 # 'tofu apply'   creates everything, builds/pushes the image, points the GitHub App webhook here.
@@ -15,6 +16,7 @@ locals {
   # Its tag is a hash of exactly those files, so it is rebuilt only when they change.
   image_files = concat(
     ["${local.repo_root}/Dockerfile", "${local.repo_root}/package.json", "${local.repo_root}/package-lock.json"],
+    ["${local.repo_root}/controller/sqs.js", "${local.repo_root}/controller/package.json"],
     [for f in sort(fileset("${local.repo_root}/scripts", "*")) : "${local.repo_root}/scripts/${f}"],
   )
   image_tag = "deps-${substr(sha256(join("", [for f in local.image_files : filesha256(f)])), 0, 12)}"
@@ -271,6 +273,13 @@ resource "scaleway_function" "webhook" {
   zip_hash     = data.archive_file.controller.output_sha256
   deploy       = true
 
+  lifecycle {
+    precondition {
+      condition     = var.runner != "keda" || var.enable_keda
+      error_message = "runner = \"keda\" needs enable_keda = true."
+    }
+  }
+
   environment_variables = {
     GITHUB_APP_ID     = var.github_app_id
     ALLOWED_REPOS     = join(",", var.allowed_repos)
@@ -280,7 +289,7 @@ resource "scaleway_function" "webhook" {
     JOBS_REGION       = var.region
     JOB_DEFINITION_ID = element(split("/", scaleway_job_definition.e2e.id), 1) # strip "fr-par/"
     REPORT_BUCKET     = scaleway_object_bucket.reports.name
-    SQS_QUEUE_URL     = scaleway_mnq_sqs_queue.runs.url
+    SQS_QUEUE_URL     = var.runner == "keda" ? one(scaleway_mnq_sqs_queue.keda[*].url) : scaleway_mnq_sqs_queue.runs.url
   }
   secret_environment_variables = {
     GITHUB_APP_PRIVATE_KEY_B64 = base64encode(file(var.github_app_private_key_path))

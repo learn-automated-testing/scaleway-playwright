@@ -11,7 +11,8 @@
 //   (Scaleway reserves SCW_* names, so none are used here)
 //   ALLOWED_REPOS (comma-separated owner/repo; only these can start runs)
 //   RUNNER = job (Serverless Job, default) | container (Serverless Container via Scaleway Queues)
-//   for RUNNER=container: SQS_QUEUE_URL, SQS_ACCESS_KEY*, SQS_SECRET_KEY*, RUN_SECRET*
+//          | keda (Kubernetes Job on Kapsule, started by KEDA from a Scaleway Queue)
+//   for RUNNER=container or keda: SQS_QUEUE_URL, SQS_ACCESS_KEY*, SQS_SECRET_KEY*, RUN_SECRET*
 //   BASE_URL, BRANCHES (optional, comma-separated; empty = all branches)
 //   REPORT_BUCKET, REPORT_ACCESS_KEY*, REPORT_SECRET_KEY* (optional report upload)
 import crypto from 'node:crypto';
@@ -83,11 +84,11 @@ async function queueContainerRun(vars) {
   // Report credentials live in the container's own config, not in the message.
   const { REPORT_BUCKET, REPORT_ACCESS_KEY, REPORT_SECRET_KEY, REPORT_REGION, ...runEnv } = vars;
   const id = await sqs.sendMessage(env.SQS_QUEUE_URL, JSON.stringify({ secret: env.RUN_SECRET, env: runEnv }));
-  return `container:${id}`;
+  return `${env.RUNNER}:${id}`;
 }
 
 async function startRun(vars) {
-  return (env.RUNNER || 'job') === 'container' ? queueContainerRun(vars) : startJob(vars);
+  return (env.RUNNER || 'job') === 'job' ? startJob(vars) : queueContainerRun(vars);
 }
 
 async function startJob(vars) {
@@ -162,7 +163,7 @@ async function onWebhook(event, payload) {
       head_sha: trigger.sha,
       status: 'queued',
       output: {
-        title: (env.RUNNER || 'job') === 'container' ? 'Queued for Scaleway Serverless Containers' : 'Queued on Scaleway Serverless Jobs',
+        title: { container: 'Queued for Scaleway Serverless Containers', keda: 'Queued for Kapsule + KEDA' }[env.RUNNER] || 'Queued on Scaleway Serverless Jobs',
         summary: 'Waiting for the run to start…',
       },
     },
